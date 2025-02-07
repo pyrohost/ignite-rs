@@ -14,9 +14,13 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    nix-eval-jobs = {
+      url = "github:nix-community/nix-eval-jobs";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, utils, rust-overlay, ... }@inputs:
+  outputs = { self, nixpkgs, utils, rust-overlay, nix-eval-jobs, ... }@inputs:
     let
       # Common functions and settings
       systems = utils.lib.defaultSystems ++ ["aarch64-darwin"];
@@ -46,6 +50,9 @@
               ".*\.rs$"
             ];
             cargoLock.lockFile = ./Cargo.lock;
+            nativeBuildInputs = [
+              nix-eval-jobs.packages.${final.system}.default
+            ];
             meta = {
               description = "A fast and reliable deployment tool for mass-scale NixOS deployments";
               mainProgram = "ignite";
