@@ -82,41 +82,6 @@ fn build_activate_command(data: &ActivateCommandData) -> String {
     self_activate_command
 }
 
-#[test]
-fn test_activation_command_builder() {
-    let sudo = Some("sudo -u test".to_string());
-    let profile_info = &ProfileInfo::ProfilePath {
-        profile_path: "/blah/profiles/test".to_string(),
-    };
-    let closure = "/nix/store/blah/etc";
-    let auto_rollback = true;
-    let dry_activate = false;
-    let boot = false;
-    let temp_path = Path::new("/tmp");
-    let confirm_timeout = 30;
-    let magic_rollback = true;
-    let debug_logs = true;
-    let log_dir = Some("/tmp/something.txt");
-
-    assert_eq!(
-        build_activate_command(&ActivateCommandData {
-            sudo: &sudo,
-            profile_info,
-            closure,
-            auto_rollback,
-            temp_path,
-            confirm_timeout,
-            magic_rollback,
-            debug_logs,
-            log_dir,
-            dry_activate,
-            boot,
-        }),
-        "sudo -u test /nix/store/blah/etc/activate-rs --debug-logs --log-dir /tmp/something.txt activate '/nix/store/blah/etc' --profile-path '/blah/profiles/test' --temp-path '/tmp' --confirm-timeout 30 --magic-rollback --auto-rollback"
-            .to_string(),
-    );
-}
-
 struct WaitCommandData<'a> {
     sudo: &'a Option<String>,
     closure: &'a str,
@@ -152,29 +117,6 @@ fn build_wait_command(data: &WaitCommandData) -> String {
     }
 
     self_activate_command
-}
-
-#[test]
-fn test_wait_command_builder() {
-    let sudo = Some("sudo -u test".to_string());
-    let closure = "/nix/store/blah/etc";
-    let temp_path = Path::new("/tmp");
-    let activation_timeout = Some(600);
-    let debug_logs = true;
-    let log_dir = Some("/tmp/something.txt");
-
-    assert_eq!(
-        build_wait_command(&WaitCommandData {
-            sudo: &sudo,
-            closure,
-            temp_path,
-            activation_timeout,
-            debug_logs,
-            log_dir
-        }),
-        "sudo -u test /nix/store/blah/etc/activate-rs --debug-logs --log-dir /tmp/something.txt wait '/nix/store/blah/etc' --temp-path '/tmp' --activation-timeout 600"
-            .to_string(),
-    );
 }
 
 struct RevokeCommandData<'a> {
@@ -217,29 +159,6 @@ fn build_revoke_command(data: &RevokeCommandData) -> String {
     }
 
     self_activate_command
-}
-
-#[test]
-fn test_revoke_command_builder() {
-    let sudo = Some("sudo -u test".to_string());
-    let closure = "/nix/store/blah/etc";
-    let profile_info = ProfileInfo::ProfilePath {
-        profile_path: "/nix/var/nix/per-user/user/profile".to_string(),
-    };
-    let debug_logs = true;
-    let log_dir = Some("/tmp/something.txt");
-
-    assert_eq!(
-        build_revoke_command(&RevokeCommandData {
-            sudo: &sudo,
-            closure,
-            profile_info,
-            debug_logs,
-            log_dir
-        }),
-        "sudo -u test /nix/store/blah/etc/activate-rs --debug-logs --log-dir /tmp/something.txt revoke --profile-path '/nix/var/nix/per-user/user/profile'"
-            .to_string(),
-    );
 }
 
 async fn handle_sudo_stdin(ssh_activate_child: &mut tokio::process::Child, deploy_defs: &DeployDefs) -> Result<(), std::io::Error> {

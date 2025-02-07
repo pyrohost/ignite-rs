@@ -31,12 +31,12 @@ let
           pkgs.hello
           pkgs.figlet
           (allDrvOutputs nodes.server.system.build.toplevel)
-          pkgs.deploy-rs.deploy-rs
+          pkgs.ignite-rs.ignite-rs
         ];
       };
       client = { nodes, ... }: {
         imports = [ (import ./common.nix { inherit inputs pkgs flakes; }) ];
-        environment.systemPackages = [ pkgs.deploy-rs.deploy-rs ];
+        environment.systemPackages = [ pkgs.ignite-rs.ignite-rs ];
         # nix evaluation takes a lot of memory, especially in non-flake usage
         virtualisation.memorySize = lib.mkForce 4096;
         virtualisation.additionalPaths = lib.optionals isLocal [
@@ -48,9 +48,9 @@ let
     };
 
     flakeInputs = ''
-      deploy-rs.url = "${../..}";
-      deploy-rs.inputs.utils.follows = "utils";
-      deploy-rs.inputs.flake-compat.follows = "flake-compat";
+      ignite-rs.url = "${../..}";
+      ignite-rs.inputs.utils.follows = "utils";
+      ignite-rs.inputs.flake-compat.follows = "flake-compat";
 
       nixpkgs.url = "${inputs.nixpkgs}";
       utils.url = "${inputs.utils}";

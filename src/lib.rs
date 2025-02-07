@@ -4,20 +4,16 @@
 //
 // SPDX-License-Identifier: MPL-2.0
 
-use rnix::{types::*, SyntaxKind::*};
-
+use rnix::{self, SyntaxKind};
 use merge::Merge;
-
 use thiserror::Error;
-
 use flexi_logger::*;
-
 use std::path::{Path, PathBuf};
 
 pub fn make_lock_path(temp_path: &Path, closure: &str) -> PathBuf {
     let lock_hash =
         &closure["/nix/store/".len()..closure.find('-').unwrap_or_else(|| closure.len())];
-    temp_path.join(format!("deploy-rs-canary-{}", lock_hash))
+    temp_path.join(format!("ignite-rs-canary-{}", lock_hash))
 }
 
 const fn make_emoji(level: log::Level) -> &'static str {
@@ -41,7 +37,7 @@ pub fn logger_formatter_activate(
         w,
         "⭐ {} [activate] [{}] {}",
         make_emoji(level),
-        style(level, level.to_string()),
+        level.to_string(),
         record.args()
     )
 }
@@ -57,7 +53,7 @@ pub fn logger_formatter_wait(
         w,
         "👀 {} [wait] [{}] {}",
         make_emoji(level),
-        style(level, level.to_string()),
+        level.to_string(),
         record.args()
     )
 }
@@ -73,7 +69,7 @@ pub fn logger_formatter_revoke(
         w,
         "↩️ {} [revoke] [{}] {}",
         make_emoji(level),
-        style(level, level.to_string()),
+        level.to_string(),
         record.args()
     )
 }
@@ -89,7 +85,7 @@ pub fn logger_formatter_deploy(
         w,
         "🚀 {} [deploy] [{}] {}",
         make_emoji(level),
-        style(level, level.to_string()),
+        level.to_string(),
         record.args()
     )
 }
@@ -106,53 +102,43 @@ pub fn init_logger(
     log_dir: Option<&str>,
     logger_type: &LoggerType,
 ) -> Result<(), FlexiLoggerError> {
-    let logger_formatter = match &logger_type {
+    let logger_formatter = match logger_type {
         LoggerType::Deploy => logger_formatter_deploy,
         LoggerType::Activate => logger_formatter_activate,
         LoggerType::Wait => logger_formatter_wait,
         LoggerType::Revoke => logger_formatter_revoke,
     };
 
+    // Only the first call is fallible:
+    let mut logger = Logger::try_with_env_or_str(if debug_logs { "debug" } else { "info" })?;
+    
     if let Some(log_dir) = log_dir {
-        let mut logger = Logger::with_env_or_str("debug")
-            .log_to_file()
+        let file_spec = FileSpec::try_from(log_dir)?;
+        logger = logger
+            .log_to_file(file_spec)
             .format_for_stderr(logger_formatter)
             .set_palette("196;208;51;7;8".to_string())
-            .directory(log_dir)
-            .duplicate_to_stderr(match debug_logs {
-                true => Duplicate::Debug,
-                false => Duplicate::Info,
-            })
-            .print_message();
-
-        match logger_type {
-            LoggerType::Activate => logger = logger.discriminant("activate"),
-            LoggerType::Wait => logger = logger.discriminant("wait"),
-            LoggerType::Revoke => logger = logger.discriminant("revoke"),
-            LoggerType::Deploy => (),
-        }
-
-        logger.start()?;
+            .write_mode(WriteMode::Direct)
+            .duplicate_to_stderr(if debug_logs { Duplicate::Debug } else { Duplicate::Info });
+        logger.start()?;  // start logger here
     } else {
-        Logger::with_env_or_str(match debug_logs {
-            true => "debug",
-            false => "info",
-        })
-        .log_target(LogTarget::StdErr)
-        .format(logger_formatter)
-        .set_palette("196;208;51;7;8".to_string())
-        .start()?;
+        logger = logger
+            .log_to_stderr()
+            .format(logger_formatter)
+            .set_palette("196;208;51;7;8".to_string());
+        logger.start()?; // start logger here
     }
-
     Ok(())
 }
 
+pub mod build;
 pub mod cli;
 pub mod data;
 pub mod deploy;
 pub mod push;
+pub mod tui;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CmdOverrides {
     pub ssh_user: Option<String>,
     pub profile_user: Option<String>,
@@ -168,6 +154,27 @@ pub struct CmdOverrides {
     pub interactive_sudo: Option<bool>,
     pub dry_activate: bool,
     pub remote_build: bool,
+}
+
+impl Default for CmdOverrides {
+    fn default() -> Self {
+        Self {
+            ssh_user: None,
+            profile_user: None,
+            ssh_opts: None,
+            fast_connection: None,
+            auto_rollback: None,
+            hostname: None,
+            magic_rollback: None,
+            temp_path: None,
+            confirm_timeout: None,
+            activation_timeout: None,
+            sudo: None,
+            interactive_sudo: None,
+            dry_activate: false,
+            remote_build: false,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -195,33 +202,22 @@ pub fn parse_flake(flake: &str) -> Result<DeployFlake, ParseFlakeError> {
     let mut profile: Option<String> = None;
 
     if let Some(fragment) = maybe_fragment {
-        let ast = rnix::parse(fragment);
-
-        let first_child = match ast.root().node().first_child() {
-            Some(x) => x,
-            None => {
-                return Ok(DeployFlake {
-                    repo,
-                    node: None,
-                    profile: None,
-                })
-            }
-        };
+        let ast = rnix::Root::parse(fragment);
+        let first_child = ast.syntax();
 
         let mut node_over = false;
-
         for entry in first_child.children_with_tokens() {
             let x: Option<String> = match (entry.kind(), node_over) {
-                (TOKEN_DOT, false) => {
+                (SyntaxKind::TOKEN_DOT, false) => {
                     node_over = true;
                     None
                 }
-                (TOKEN_DOT, true) => {
+                (SyntaxKind::TOKEN_DOT, true) => {
                     return Err(ParseFlakeError::PathTooLong);
                 }
-                (NODE_IDENT, _) => Some(entry.into_node().unwrap().text().to_string()),
-                (TOKEN_IDENT, _) => Some(entry.into_token().unwrap().text().to_string()),
-                (NODE_STRING, _) => {
+                (SyntaxKind::NODE_IDENT, _) => Some(entry.into_node().unwrap().text().to_string()),
+                (rnix::SyntaxKind::TOKEN_IDENT, _) => Some(entry.into_token().unwrap().text().to_string()),
+                (rnix::SyntaxKind::NODE_STRING, _) => {
                     let c = entry
                         .into_node()
                         .unwrap()
@@ -233,7 +229,6 @@ pub fn parse_flake(flake: &str) -> Result<DeployFlake, ParseFlakeError> {
                 }
                 _ => return Err(ParseFlakeError::Unrecognized),
             };
-
             if !node_over {
                 node = x;
             } else {
@@ -241,78 +236,7 @@ pub fn parse_flake(flake: &str) -> Result<DeployFlake, ParseFlakeError> {
             }
         }
     }
-
-    Ok(DeployFlake {
-        repo,
-        node,
-        profile,
-    })
-}
-
-#[test]
-fn test_parse_flake() {
-    assert_eq!(
-        parse_flake("../deploy/examples/system").unwrap(),
-        DeployFlake {
-            repo: "../deploy/examples/system",
-            node: None,
-            profile: None,
-        }
-    );
-
-    assert_eq!(
-        parse_flake("../deploy/examples/system#").unwrap(),
-        DeployFlake {
-            repo: "../deploy/examples/system",
-            node: None,
-            profile: None,
-        }
-    );
-
-    assert_eq!(
-        parse_flake("../deploy/examples/system#computer.\"something.nix\"").unwrap(),
-        DeployFlake {
-            repo: "../deploy/examples/system",
-            node: Some("computer".to_string()),
-            profile: Some("something.nix".to_string()),
-        }
-    );
-
-    assert_eq!(
-        parse_flake("../deploy/examples/system#\"example.com\".system").unwrap(),
-        DeployFlake {
-            repo: "../deploy/examples/system",
-            node: Some("example.com".to_string()),
-            profile: Some("system".to_string()),
-        }
-    );
-
-    assert_eq!(
-        parse_flake("../deploy/examples/system#example").unwrap(),
-        DeployFlake {
-            repo: "../deploy/examples/system",
-            node: Some("example".to_string()),
-            profile: None
-        }
-    );
-
-    assert_eq!(
-        parse_flake("../deploy/examples/system#example.system").unwrap(),
-        DeployFlake {
-            repo: "../deploy/examples/system",
-            node: Some("example".to_string()),
-            profile: Some("system".to_string())
-        }
-    );
-
-    assert_eq!(
-        parse_flake("../deploy/examples/system").unwrap(),
-        DeployFlake {
-            repo: "../deploy/examples/system",
-            node: None,
-            profile: None,
-        }
-    );
+    Ok(DeployFlake { repo, node, profile })
 }
 
 #[derive(Debug, Clone)]

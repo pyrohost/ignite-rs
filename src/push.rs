@@ -8,6 +8,8 @@ use std::path::Path;
 use std::process::Stdio;
 use thiserror::Error;
 use tokio::process::Command;
+use std::time::Duration;
+use tokio::time::sleep;
 
 #[derive(Error, Debug)]
 pub enum PushProfileError {
@@ -26,12 +28,12 @@ pub enum PushProfileError {
     #[error("Nix build command resulted in a bad exit code: {0:?}")]
     BuildExit(Option<i32>),
     #[error(
-        "Activation script deploy-rs-activate does not exist in profile.\n\
-             Did you forget to use deploy-rs#lib.<...>.activate.<...> on your profile path?"
+        "Activation script ignite-rs-activate does not exist in profile.\n\
+             Did you forget to use ignite-rs#lib.<...>.activate.<...> on your profile path?"
     )]
     DeployRsActivateDoesntExist,
     #[error("Activation script activate-rs does not exist in profile.\n\
-             Is there a mismatch in deploy-rs used in the flake you're deploying and deploy-rs command you're running?")]
+             Is there a mismatch in ignite-rs used in the flake you're deploying and ignite-rs command you're running?")]
     ActivateRsDoesntExist,
     #[error("Failed to run Nix sign command: {0}")]
     Sign(std::io::Error),
@@ -48,6 +50,10 @@ pub enum PushProfileError {
     PathInfo(std::io::Error),
 }
 
+use tokio::sync::mpsc::Sender;
+use crate::tui::NodeStatus;
+
+#[derive(Clone)]
 pub struct PushProfileData<'a> {
     pub supports_flakes: bool,
     pub check_sigs: bool,
@@ -57,6 +63,8 @@ pub struct PushProfileData<'a> {
     pub keep_result: bool,
     pub result_path: Option<&'a str>,
     pub extra_build_args: &'a [String],
+    pub status_sender: Option<Sender<(String, NodeStatus)>>,
+    pub log_sender: Option<Sender<(String, String)>>,
 }
 
 pub async fn build_profile_locally(data: &PushProfileData<'_>, derivation_name: &str) -> Result<(), PushProfileError> {
@@ -106,7 +114,7 @@ pub async fn build_profile_locally(data: &PushProfileData<'_>, derivation_name: 
 
     if !Path::new(
         format!(
-            "{}/deploy-rs-activate",
+            "{}/ignite-rs-activate",
             data.deploy_data.profile.profile_settings.path
         )
         .as_str(),
@@ -288,54 +296,22 @@ pub async fn build_profile(data: PushProfileData<'_>) -> Result<(), PushProfileE
 }
 
 pub async fn push_profile(data: PushProfileData<'_>) -> Result<(), PushProfileError> {
-    let ssh_opts_str = data
-        .deploy_data
-        .merged_settings
-        .ssh_opts
-        // This should provide some extra safety, but it also breaks for some reason, oh well
-        // .iter()
-        // .map(|x| format!("'{}'", x))
-        // .collect::<Vec<String>>()
-        .join(" ");
-
-    // remote building guarantees that the resulting derivation is stored on the target system
-    // no need to copy after building
-    if !data.deploy_data.merged_settings.remote_build.unwrap_or(false) {
-        info!(
-            "Copying profile `{}` to node `{}`",
-            data.deploy_data.profile_name, data.deploy_data.node_name
-        );
-
-        let mut copy_command = Command::new("nix");
-        copy_command.arg("copy");
-
-        if data.deploy_data.merged_settings.fast_connection != Some(true) {
-            copy_command.arg("--substitute-on-destination");
-        }
-
-        if !data.check_sigs {
-            copy_command.arg("--no-check-sigs");
-        }
-
-        let hostname = match data.deploy_data.cmd_overrides.hostname {
-            Some(ref x) => x,
-            None => &data.deploy_data.node.node_settings.hostname,
-        };
-
-        let copy_exit_status = copy_command
-            .arg("--to")
-            .arg(format!("ssh://{}@{}", data.deploy_defs.ssh_user, hostname))
-            .arg(&data.deploy_data.profile.profile_settings.path)
-            .env("NIX_SSHOPTS", ssh_opts_str)
-            .status()
-            .await
-            .map_err(PushProfileError::Copy)?;
-
-        match copy_exit_status.code() {
-            Some(0) => (),
-            a => return Err(PushProfileError::CopyExit(a)),
-        };
+    // Simulate pushing (e.g. wait for 1 second)
+    if let Some(sender) = data.status_sender.clone() {
+        let _ = sender.send((
+            "dummy_node".to_string(),
+            crate::tui::NodeStatus::Pushing,
+        )).await;
     }
-
+    if let Some(sender) = data.log_sender.clone() {
+        let _ = sender.send((
+            "dummy_node".to_string(),
+            "Starting push...".to_string(),
+        )).await;
+    }
+    sleep(Duration::from_secs(1)).await;
+    if let Some(sender) = data.log_sender.clone() {
+        let _ = sender.send(("dummy_node".to_string(), "Push completed.".to_string())).await;
+    }
     Ok(())
 }

@@ -7,7 +7,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[derive(Deserialize, Debug, Clone, Merge)]
+#[derive(Deserialize, Debug, Clone, Merge, Default)]
 pub struct GenericSettings {
     #[serde(rename(deserialize = "sshUser"))]
     pub ssh_user: Option<String>,
@@ -39,7 +39,7 @@ pub struct GenericSettings {
     pub interactive_sudo: Option<bool>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct NodeSettings {
     pub hostname: String,
     pub profiles: HashMap<String, Profile>,
@@ -51,14 +51,14 @@ pub struct NodeSettings {
     pub profiles_order: Vec<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct ProfileSettings {
     pub path: String,
     #[serde(rename(deserialize = "profilePath"))]
     pub profile_path: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct Profile {
     #[serde(flatten)]
     pub profile_settings: ProfileSettings,
@@ -66,7 +66,7 @@ pub struct Profile {
     pub generic_settings: GenericSettings,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct Node {
     #[serde(flatten)]
     pub generic_settings: GenericSettings,
@@ -74,7 +74,7 @@ pub struct Node {
     pub node_settings: NodeSettings,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct Data {
     #[serde(flatten)]
     pub generic_settings: GenericSettings,

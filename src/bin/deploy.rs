@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: MPL-2.0
 
-use deploy::cli;
+use ignite::cli;
 use log::error;
 
 #[tokio::main]

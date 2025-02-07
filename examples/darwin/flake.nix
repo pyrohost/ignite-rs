@@ -1,10 +1,10 @@
 {
   description = "Deploy simple 'darwinSystem' to a darwin machine";
 
-  inputs.deploy-rs.url = "github:serokell/deploy-rs";
+  inputs.ignite-rs.url = "github:serokell/ignite-rs";
   inputs.darwin.url = "github:LnL7/nix-darwin";
 
-  outputs = { self, nixpkgs, deploy-rs, darwin }: {
+  outputs = { self, nixpkgs, ignite-rs, darwin }: {
     darwinConfigurations.example = darwin.lib.darwinSystem {
       system = "x86_64-darwin";
       modules = [
@@ -29,11 +29,11 @@
         hostname = "localhost";
         profiles.system = {
           user = "root";
-          path = deploy-rs.lib.x86_64-darwin.activate.darwin self.darwinConfigurations.example;
+          path = ignite-rs.lib.x86_64-darwin.activate.darwin self.darwinConfigurations.example;
         };
       };
     };
 
-    checks = builtins.mapAttrs (system: deployLib: deployLib.deployChecks self.deploy) deploy-rs.lib;
+    checks = builtins.mapAttrs (system: deployLib: deployLib.deployChecks self.deploy) ignite-rs.lib;
   };
 }

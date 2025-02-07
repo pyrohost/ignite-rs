@@ -5,9 +5,9 @@
 {
   description = "Deploy a full system with hello service as a separate profile";
 
-  inputs.deploy-rs.url = "github:serokell/deploy-rs";
+  inputs.ignite-rs.url = "github:serokell/ignite-rs";
 
-  outputs = { self, nixpkgs, deploy-rs }: {
+  outputs = { self, nixpkgs, ignite-rs }: {
     nixosConfigurations.example-nixos-system = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [ ./configuration.nix ];
@@ -31,17 +31,17 @@
         system = {
           sshUser = "admin";
           path =
-            deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.example-nixos-system;
+            ignite-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.example-nixos-system;
           user = "root";
         };
         hello = {
           sshUser = "hello";
-          path = deploy-rs.lib.x86_64-linux.activate.custom self.defaultPackage.x86_64-linux "./bin/activate";
+          path = ignite-rs.lib.x86_64-linux.activate.custom self.defaultPackage.x86_64-linux "./bin/activate";
           user = "hello";
         };
       };
     };
 
-    checks = builtins.mapAttrs (system: deployLib: deployLib.deployChecks self.deploy) deploy-rs.lib;
+    checks = builtins.mapAttrs (system: deployLib: deployLib.deployChecks self.deploy) ignite-rs.lib;
   };
 }
