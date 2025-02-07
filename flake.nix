@@ -31,8 +31,7 @@
 
         ignite-rs = (final.rust.packages.nightly.rustPlatform or final.rustPlatform).buildRustPackage (darwinOptions // {
           pname = "ignite-rs";
-          version = "0.1.0";
-          cargoExtraArgs = "--Znext-lockfile-bump";
+          version = "1.0.0";
 
           src = final.lib.sourceByRegex ./. [
             "Cargo\.lock"
