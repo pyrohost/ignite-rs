@@ -23,9 +23,9 @@ use crate::{
     tui::{self, NodeStatus}
 };
 
-/// Simple Rust rewrite of a simple Nix Flake deployment tool
+/// A fast and reliable deployment tool for mass-scale NixOS deployments
 #[derive(Parser, Debug, Clone)]
-#[command(version = "1.0", author = "Serokell <https://serokell.io/>")]
+#[command(version = "1.0", author = "Pyro Inc. <team@pyro.host>")]
 pub struct Opts {
     /// The flake to deploy
     #[arg(group = "deploy")]

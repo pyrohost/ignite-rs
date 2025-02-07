@@ -26,7 +26,7 @@ use log::{debug, error, info, warn};
 
 /// Remote activation utility for ignite-rs
 #[derive(Parser, Debug)]
-#[command(version = "1.0", author = "Serokell <https://serokell.io/>")]
+#[command(version = "1.0", author = "Pyro Inc. <team@pyro.host>")]
 struct Opts {
     /// Print debug logs to output
     #[arg(short, long)]

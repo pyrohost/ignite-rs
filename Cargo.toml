@@ -5,9 +5,9 @@
 [package]
 name = "ignite-rs"
 version = "1.0.0"
-authors = ["Pyro Inc."]
+authors = ["Pyro Inc. <team@pyro.host>"]
 edition = "2021"
-description = "A more maintained version of deploy-rs meant for mass-scale deployments to hundreds of systems"
+description = "A fast and reliable deployment tool for mass-scale NixOS deployments"
 license = "MPL-2.0"
 repository = "https://github.com/pyrohost/ignite-rs"
 
@@ -35,6 +35,10 @@ whoami = "1.4"
 [lib]
 name = "ignite"
 path = "src/lib.rs"
+
+[[bin]]
+name = "ignite"
+path = "src/bin/ignite.rs"
 
 [profile.release]
 lto = true
