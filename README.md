@@ -7,11 +7,7 @@ SPDX-License-Identifier: MPL-2.0
 
 ![ignite-rs logo](./docs/logo.svg "ignite-rs")
 
----
-
 A Simple, multi-profile Nix-flake deploy tool.
-
-Questions? Need help? Join us on Matrix: [`#ignite-rs:matrix.org`](https://matrix.to/#/#ignite-rs:matrix.org)
 
 ## Usage
 
@@ -238,9 +234,5 @@ This is a set of options that can be put in any of the above definitions, with t
 
 Some of these options can be provided during `deploy` invocation to override default values or values provided in your flake, see `deploy --help`.
 
-## About Serokell
-
-ignite-rs is maintained and funded with ❤️ by [Serokell](https://serokell.io/).
+ignite-rs is based on deploy-rs, originally built by [Serokell](https://serokell.io/).
 The names and logo for Serokell are trademark of Serokell OÜ.
-
-We love open source software! See [our other projects](https://serokell.io/community?utm_source=github) or [hire us](https://serokell.io/hire-us?utm_source=github) to design, develop and grow your idea!
